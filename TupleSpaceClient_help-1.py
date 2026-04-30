@@ -48,7 +48,39 @@ def main():
             # - Receive: first read 3 bytes to get the response size (like the server does).
             #            Then read the remaining (size - 3) bytes to get the response body.
 
+            if cmd not in ("READ", "GET", "PUT"):
+                print(f"{line}: ERR Invalid operation")
+                continue
 
+            if cmd == "PUT":
+                if len(parts) < 3:
+                    print(f"{line}: ERR Invalid format")
+                    continue
+                key = parts[1]
+                value = parts[2]
+                combined = key + " " + value
+                if len(combined) > 970:
+                    print(f"{line}: ERR Input too long")
+                    continue
+                size = 7 + len(key) + len(value)
+                message = f"{size:03d} P {key} {value}"
+            else:
+                if len(parts) < 2:
+                    print(f"{line}: ERR Invalid format")
+                    continue
+                key = parts[1]
+                op_char = "R" if cmd == "READ" else "G"
+                size = 6 + len(key)
+                message = f"{size:03d} {op_char} {key}"
+
+            sock.sendall(message.encode())
+
+            response_size_data = receive_n(sock, 3)
+            if not response_size_data:
+                print(f"{line}: ERR Connection closed")
+                continue
+            response_size = int(response_size_data.decode().strip())
+            response_buffer = receive_n(sock, response_size - 3)
             response = response_buffer.decode().strip()
             print(f"{line}: {response}")
 
